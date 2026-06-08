@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>世界时间 · World Clock</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a3e 50%, #0f0f1a 100%);
+    min-height: 100vh;
+    color: #e0e0e0;
+    padding: 2rem 1rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #6ec6ff, #b388ff, #6ec6ff);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+    margin-bottom: 0.35rem;
+  }
+
+  @keyframes shimmer {
+    to { background-position: 200% center; }
+  }
+
+  .header .current-local {
+    font-size: 0.95rem;
+    color: #888;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 1.25rem 1.4rem;
+    backdrop-filter: blur(12px);
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .card.night {
+    background: rgba(20, 20, 60, 0.5);
+  }
+
+  .card.day {
+    background: rgba(40, 40, 100, 0.25);
+  }
+
+  .city-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .city-flag {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .city-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #aaa;
+  }
+
+  .time {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 0.15rem;
+  }
+
+  .time .seconds {
+    font-size: 1rem;
+    color: #888;
+    font-weight: 400;
+    margin-left: 2px;
+  }
+
+  .date-info {
+    font-size: 0.8rem;
+    color: #777;
+  }
+
+  .offset-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #999;
+    margin-top: 0.5rem;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    font-size: 0.75rem;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#127758; 世界时间</h1>
+  <div class="current-local" id="localTime"></div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="footer">
+  所有时间基于浏览器时区数据自动计算 · 实时更新
+</div>
+
+<script>
+const CITIES = [
+  // 亚太
+  { city: '东京',        country: '日本',       flag: '🇯🇵', tz: 'Asia/Tokyo' },
+  { city: '首尔',        country: '韩国',       flag: '🇰🇷', tz: 'Asia/Seoul' },
+  { city: '北京',        country: '中国',       flag: '🇨🇳', tz: 'Asia/Shanghai' },
+  { city: '惠灵顿',      country: '新西兰',     flag: '🇳🇿', tz: 'Pacific/Auckland' },
+  { city: '阿斯塔纳',    country: '哈萨克斯坦', flag: '🇰🇿', tz: 'Asia/Almaty' },
+
+  // 欧洲
+  { city: '伦敦',        country: '英国',       flag: '🇬🇧', tz: 'Europe/London' },
+  { city: '巴黎',        country: '法国',       flag: '🇫🇷', tz: 'Europe/Paris' },
+  { city: '柏林',        country: '德国',       flag: '🇩🇪', tz: 'Europe/Berlin' },
+  { city: '苏黎世',      country: '瑞士',       flag: '🇨🇭', tz: 'Europe/Zurich' },
+  { city: '基辅',        country: '乌克兰',     flag: '🇺🇦', tz: 'Europe/Kiev' },
+  { city: '莫斯科',      country: '俄罗斯',     flag: '🇷🇺', tz: 'Europe/Moscow' },
+
+  // 美洲
+  { city: '洛杉矶',      country: '美国',       flag: '🇺🇸', tz: 'America/Los_Angeles' },
+  { city: '休斯顿',      country: '美国',       flag: '🇺🇸', tz: 'America/Chicago' },
+  { city: '芝加哥',      country: '美国',       flag: '🇺🇸', tz: 'America/Chicago' },
+  { city: '纽约',        country: '美国',       flag: '🇺🇸', tz: 'America/New_York' },
+  { city: '圣地亚哥',    country: '智利',       flag: '🇨🇱', tz: 'America/Santiago' },
+  { city: '墨西哥城',    country: '墨西哥',     flag: '🇲🇽', tz: 'America/Mexico_City' },
+  { city: '巴西利亚',    country: '巴西',       flag: '🇧🇷', tz: 'America/Sao_Paulo' },
+];
+
+function formatTime(date, tz) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+function formatDate(date, tz) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).format(date);
+}
+
+function getOffset(date, tz) {
+  // Get the UTC offset in hours for a given timezone
+  const utc = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const local = new Date(date.toLocaleString('en-US', { timeZone: tz }));
+  const diff = (local - utc) / 3600000;
+  const sign = diff >= 0 ? '+' : '';
+  return `UTC${sign}${diff}:00`;
+}
+
+function isNighttime(date, tz) {
+  const hour = parseInt(new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', hour12: false,
+  }).format(date), 10);
+  return hour < 6 || hour >= 20;
+}
+
+function render() {
+  const now = new Date();
+  const grid = document.getElementById('grid');
+
+  // sort by UTC offset
+  const sorted = [...CITIES].sort((a, b) => {
+    const ua = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const la = new Date(now.toLocaleString('en-US', { timeZone: a.tz }));
+    const lb = new Date(now.toLocaleString('en-US', { timeZone: b.tz }));
+    return (la - ua) - (lb - ua);
+  });
+
+  grid.innerHTML = sorted.map(c => {
+    const night = isNighttime(now, c.tz);
+    const timeStr = formatTime(now, c.tz);
+    const [hh, mm, ss] = timeStr.split(':');
+    return `
+      <div class="card ${night ? 'night' : 'day'}">
+        <div class="city-row">
+          <span class="city-flag">${c.flag}</span>
+          <span class="city-name">${c.city} · ${c.country}</span>
+        </div>
+        <div class="time">
+          ${hh}:${mm}<span class="seconds">:${ss}</span>
+        </div>
+        <div class="date-info">${formatDate(now, c.tz)}</div>
+        <div class="offset-badge">${getOffset(now, c.tz)}</div>
+      </div>`;
+  }).join('');
+
+  // update local time header
+  document.getElementById('localTime').textContent =
+    `你的本地时间：${formatTime(now, Intl.DateTimeFormat().resolvedOptions().timeZone)}`;
+}
+
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
