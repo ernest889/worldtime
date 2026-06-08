@@ -131,6 +131,11 @@
     margin-top: 0.5rem;
   }
 
+  .offset-badge.green {
+    background: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+  }
+
   .footer {
     text-align: center;
     margin-top: 2.5rem;
@@ -253,7 +258,7 @@ function render() {
           ${hh}:${mm}<span class="seconds">:${ss}</span>
         </div>
         <div class="date-info">${formatDate(now, c.tz)}</div>
-        <div class="offset-badge">${getOffset(now, c.tz)}</div>
+        <div class="offset-badge${c.city === '苏黎世' || c.city === '基辅' ? ' green' : ''}">${getOffset(now, c.tz)}</div>
       </div>`;
   }).join('');
 
